@@ -1,0 +1,30 @@
+# Ambiente Virtual Python (se existir na raiz)
+/venv/
+/env/
+/.venv/
+
+# Logs e Caches Gerais
+*.log
+.cache/
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDE/Editor na Raiz
+.idea/
+.vscode/ # Geralmente é melhor ter no .gitignore interno dos subprojetos
+
+# Dependências Node (já ignorado em frontend/, mas por segurança)
+/frontend/node_modules/
+/frontend/build/
+/frontend/.pnp*
+
+# Arquivos .env na raiz (se houver)
+.env
+.env.*
+!.env.example
+
+# Outros
+*.bak
+*.tmp 
