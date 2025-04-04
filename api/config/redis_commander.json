@@ -1,0 +1,15 @@
+{
+  "redis": {
+    "hosts": [
+      {
+        "name": "local",
+        "host": "redis",
+        "port": 6379,
+        "password": "secret"
+      }
+    ]
+  },
+  "server": {
+    "port": 8081
+  }
+} 

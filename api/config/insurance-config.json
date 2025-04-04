@@ -1,0 +1,43 @@
+{
+    "INSURANCE": {
+        "BASE_RATE": 0.0,
+        "AGE_ADJUSTMENT_RATE": 0.005,
+        "VALUE_ADJUSTMENT_RATE": 0.005,
+        "COVERAGE_PERCENTAGE": 1.0,
+        "MIN_DEDUCTIBLE_PERCENTAGE": 0.05,
+        "MAX_DEDUCTIBLE_PERCENTAGE": 0.15,
+        "MIN_BROKER_FEE": 0.0,
+        "MAX_BROKER_FEE": 10000.0,
+        "MIN_CAR_YEAR": 1900,
+        "MAX_CAR_VALUE": 1000000.0,
+        "GIS_ADJUSTMENT_RATE": {
+            "AC": 0.01,
+            "AL": 0.01,
+            "AP": 0.01,
+            "AM": 0.01,
+            "BA": 0.01,
+            "CE": 0.01,
+            "DF": 0.015,
+            "ES": 0.005,
+            "GO": 0.005,
+            "MA": 0.01,
+            "MT": 0.005,
+            "MS": 0.005,
+            "MG": 0.005,
+            "PA": 0.01,
+            "PB": 0.01,
+            "PR": 0.005,
+            "PE": 0.01,
+            "PI": 0.01,
+            "RJ": 0.015,
+            "RN": 0.01,
+            "RS": 0.005,
+            "RO": 0.005,
+            "RR": 0.01,
+            "SC": 0.005,
+            "SP": 0.015,
+            "SE": 0.01,
+            "TO": 0.005
+        }
+    }
+} 

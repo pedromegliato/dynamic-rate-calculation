@@ -1,0 +1,142 @@
+version: '3.8'
+services:
+  api:
+    build: 
+      context: ./api
+      args:
+        - TARGETPLATFORM=${TARGETPLATFORM:-linux/amd64}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=info
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=secret
+      - DB_NAME=insurance
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=secret
+      - CONFIG_PATH=/app/config/insurance-config.json
+    volumes:
+      - ./api:/app
+      - api_logs:/var/log/api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+        window: 120s
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: insurance
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - db_backup:/backup
+      - ./mysql/conf.d:/etc/mysql/conf.d
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: --pid-file=/var/lib/mysql/mysqld.pid
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-psecret"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7
+    restart: always
+    command: redis-server --requirepass secret --maxmemory 512mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "secret", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - app-network
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+
+  redis-commander:
+    image: rediscommander/redis-commander
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      - HTTP_USER=admin
+      - HTTP_PASSWORD=admin
+    volumes:
+      - ./api/config/local-production.json:/redis-commander/config/local-production.json
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db_data:
+  db_backup:
+  redis_data:
+  api_logs:

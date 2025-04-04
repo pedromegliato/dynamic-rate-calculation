@@ -1,0 +1,66 @@
+[tool.poetry]
+name = "car-insurance-premium-simulator"
+version = "0.1.0"
+description = "Serviço backend para cálculo de prêmios de seguro de automóveis"
+authors = ["Your Name <your.email@example.com>"]
+license = "MIT"
+packages = [
+    { include = "app" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.109.0"
+uvicorn = "^0.27.0"
+pydantic = "^2.6.0"
+pydantic-settings = "^2.1.0"
+python-dotenv = "^1.0.0"
+mysql-connector-python = "^8.3.0"
+pymysql = "^1.1.0"
+redis = "^5.0.1"
+requests = "^2.31.0"
+tenacity = "^8.2.3"
+prometheus-client = "^0.19.0"
+structlog = "^24.1.0"
+psutil = "^7.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.5"
+pytest-cov = "^4.1.0"
+black = "^24.1.1"
+isort = "^5.13.2"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+httpx = "^0.26.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+python_classes = ["Test*"]
+addopts = "-v --cov=app --cov-report=term-missing" 
