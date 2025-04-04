@@ -20,6 +20,7 @@ class InsuranceCalculationEntity:
         deductible_value: Valor da franquia
         policy_limit: Limite da apólice
         broker_fee: Taxa do corretor
+        registration_location: Local de registro (opcional)
         gis_adjustment: Ajuste GIS (opcional)
         id: Identificador único
         created_at: Data de criação
@@ -32,12 +33,17 @@ class InsuranceCalculationEntity:
     deductible_value: Money
     policy_limit: Money
     broker_fee: Money
+    registration_location: Optional[Address] = None
     gis_adjustment: Optional[Decimal] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
     deleted_at: Optional[datetime] = None
     
+    def touch(self):
+        """Atualiza o timestamp updated_at."""
+        self.updated_at = datetime.utcnow()
+
     def __str__(self) -> str:
         """Retorna a representação em string do cálculo."""
         return f"InsuranceCalculation(id={self.id}, car_info={self.car_info}, applied_rate={self.applied_rate}, calculated_premium={self.calculated_premium})"

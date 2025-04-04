@@ -10,13 +10,12 @@ from typing import Optional
 from app.domain.interfaces.repository import InsuranceCalculationRepository
 from app.domain.services.insurance_calculator import InsuranceCalculator
 from app.domain.entities.insurance_calculation import InsuranceCalculationEntity
-from app.domain.entities.car import CarInfo  
+from app.domain.value_objects import CarInfo, Money, Address, Percentage
 from app.domain.exceptions import (
     InvalidCarInfoError,
     RepositoryError,
     InsuranceCalculationError
 )
-from app.domain.value_objects import Money, Address, Percentage
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 from app.config.settings import settings, Settings
 
@@ -39,8 +38,8 @@ class CalculateInsuranceUseCase:
         """
         self.calculator = InsuranceCalculator(app_settings)
         self.repository = repository
-        logger.debug("CalculateInsuranceUseCase inicializado.")
-        
+        logger.info("CalculateInsuranceUseCase inicializado.")
+
     @retry(
         retry=retry_if_exception_type(RepositoryError),
         stop=stop_after_attempt(settings.RETRY.MAX_RETRIES),
@@ -59,24 +58,30 @@ class CalculateInsuranceUseCase:
         """
         try:
             logger.info(f"Executando caso de uso CalculateInsurance com dados: {kwargs}")
-            # Validar e Criar Objetos de Valor / Entidades
             registration_location_data = kwargs.get('registration_location')
             registration_location: Optional[Address] = None
             if isinstance(registration_location_data, dict):
-                registration_location = Address(**registration_location_data)
+                try:
+                    registration_location = Address(**registration_location_data)
+                    logger.info(f"Address VO criado: {registration_location}")
+                except Exception as addr_err:
+                    logger.error(f"Erro ao criar Address VO a partir dos dados: {addr_err}", exc_info=True)
+                    raise InvalidCarInfoError(f"Dados de endereço inválidos: {addr_err}")
             elif registration_location_data is not None:
                  logger.warning(f"Tipo inesperado para registration_location: {type(registration_location_data)}")
                  pass 
 
-            car_info = CarInfo.create(
-                make=kwargs['make'],
-                model=kwargs['model'],
-                year=kwargs['year'],
-                value=Decimal(str(kwargs['value'])),
-                deductible_percentage=Decimal(str(kwargs['deductible_percentage'])),
-                broker_fee=Decimal(str(kwargs['broker_fee'])),
-                registration_location=registration_location
-            )
+            try:
+                car_info = CarInfo(
+                    make=kwargs['make'],
+                    model=kwargs['model'],
+                    year=kwargs['year'],
+                    value=Decimal(str(kwargs['value']))
+                )
+            except Exception as car_err:
+                logger.error(f"Erro ao criar CarInfo: {car_err}", exc_info=True)
+                raise InvalidCarInfoError(f"Dados do carro inválidos: {car_err}")
+
             deductible_percentage = Percentage(amount=Decimal(str(kwargs['deductible_percentage'])))
             broker_fee = Money(amount=Decimal(str(kwargs['broker_fee'])))
             
@@ -94,29 +99,31 @@ class CalculateInsuranceUseCase:
                 car_value=Money(amount=car_info.value),
                 deductible_percentage=deductible_percentage
             )
-            # Recalcular deductible_value com base no limite e percentual
             deductible_value = Money(
                 amount=limit.amount * deductible_percentage.amount,
                 currency=limit.currency
             )
             
-            # Calcular ajuste GIS 
             gis_adjustment_applied = None
             if registration_location:
-                 base_rate_no_gis = self.calculator.calculate_rate(car_info, None)
-                 gis_adjustment_applied = rate.amount - base_rate_no_gis.amount
+                 try:
+                    base_rate_no_gis = self.calculator.calculate_rate(car_info, None)
+                    gis_adjustment_applied = rate.amount - base_rate_no_gis.amount
+                 except Exception as gis_err:
+                     logger.error(f"Erro ao calcular ajuste GIS: {gis_err}", exc_info=True)
+                     gis_adjustment_applied = None
 
             calculation_entity = InsuranceCalculationEntity(
-                id=str(uuid.uuid4()),
+                id=uuid.uuid4(), 
                 car_info=car_info,
                 applied_rate=rate.amount, 
                 calculated_premium=premium,
                 deductible_value=deductible_value,
                 policy_limit=limit,
+                registration_location=registration_location,
                 gis_adjustment=Decimal(str(gis_adjustment_applied)) if gis_adjustment_applied is not None else None,
                 broker_fee=broker_fee,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+
             )
 
             await self.repository.save_calculation(calculation_entity)

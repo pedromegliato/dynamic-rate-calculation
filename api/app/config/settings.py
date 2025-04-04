@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     
     # Tipo de repositório a ser usado ('mysql', 'redis')
     REPOSITORY_TYPE: str = Field(default="mysql")
-
+    
     # Subconfigurações
     API: APIConfig = APIConfig()
     DATABASE: DatabaseConfig = DatabaseConfig()

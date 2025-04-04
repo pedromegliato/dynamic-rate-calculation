@@ -13,7 +13,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - ENVIRONMENT=development
+      - ENVIRONMENT=production
       - LOG_LEVEL=info
       - DB_HOST=db
       - DB_PORT=3306
@@ -51,6 +51,17 @@ services:
         condition: on-failure
         max_attempts: 3
         window: 120s
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
     networks:
       - app-network
 

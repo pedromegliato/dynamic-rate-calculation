@@ -1,5 +1,5 @@
 """
-Módulo de entidades do domínio.
+Entidades de domínio.
 """
 from .insurance_calculation import InsuranceCalculationEntity
 

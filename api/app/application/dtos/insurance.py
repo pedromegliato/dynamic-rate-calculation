@@ -6,6 +6,39 @@ from datetime import datetime
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import Optional
 from app.domain.value_objects.address import Address
+from app.domain.value_objects import Address as DomainAddress
+
+
+class AddressRequest(BaseModel):
+    street: str = Field(..., min_length=1)
+    number: str = Field(..., min_length=1)
+    complement: Optional[str] = None
+    neighborhood: str = Field(..., min_length=1)
+    city: str = Field(..., min_length=1)
+    state: str = Field(..., min_length=2, max_length=2)
+    postal_code: str = Field(..., pattern=r'^\d{5}-?\d{3}$')
+    country: str = Field(default='BR', min_length=2, max_length=2)
+
+    @field_validator('postal_code')
+    def format_postal_code(cls, v: str) -> str:
+        digits = ''.join(filter(str.isdigit, v))
+        if len(digits) == 8:
+            return f'{digits[:5]}-{digits[5:]}'
+        return v
+
+
+class AddressResponse(BaseModel):
+    """DTO para representar o endereço na resposta."""
+    street: str
+    number: str
+    complement: Optional[str] = None
+    neighborhood: str
+    city: str
+    state: str
+    postal_code: str
+    country: str
+
+    model_config = ConfigDict(from_attributes=True) # Permite criar a partir do VO Address
 
 
 class InsuranceCalculationRequest(BaseModel):
@@ -16,7 +49,7 @@ class InsuranceCalculationRequest(BaseModel):
     value: float = Field(..., description="Valor de mercado do carro", gt=0)
     deductible_percentage: float = Field(..., description="Porcentagem da franquia (0 a 1)", ge=0, le=1)
     broker_fee: float = Field(..., description="Taxa do corretor (valor monetário)", ge=0)
-    registration_location: Optional[Address] = Field(None, description="Local de registro (opcional)")
+    registration_location: Optional[AddressRequest] = Field(None, description="Local de registro (opcional)")
 
     @field_validator('year')
     def validate_year(cls, v):
@@ -42,5 +75,24 @@ class InsuranceCalculationResponse(BaseModel):
     policy_limit: float = Field(..., description="Limite da apólice")
     gis_adjustment: Optional[float] = Field(None, description="Ajuste percentual GIS aplicado (se houver)")
     broker_fee: float = Field(..., description="Taxa do corretor aplicada")
+    registration_location: Optional[AddressResponse] = None
 
-    model_config = ConfigDict(from_attributes=True) 
+    model_config = ConfigDict(from_attributes=True)
+
+
+class InsuranceCalculationPatchRequest(BaseModel):
+    make: Optional[str] = Field(None, min_length=1)
+    model: Optional[str] = Field(None, min_length=1)
+    year: Optional[int] = Field(None, gt=1900)
+    value: Optional[Decimal] = Field(None, gt=0)
+    deductible_percentage: Optional[Decimal] = Field(None, ge=0, le=1)
+    broker_fee: Optional[Decimal] = Field(None, ge=0)
+    registration_location: Optional[AddressRequest | None] = Field(default=None)
+
+    @field_validator('year')
+    def validate_patch_year(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None:
+            current_year = datetime.now().year
+            if v > current_year + 1:
+                raise ValueError(f'Ano não pode ser maior que {current_year + 1}')
+        return v 

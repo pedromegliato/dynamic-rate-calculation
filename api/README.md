@@ -71,7 +71,7 @@ Implementa construção multi-stage para otimização e segurança:
 ### Usando Docker Compose (Recomendado)
 
 1.  **A partir da raiz do projeto (onde está o `docker-compose.yml`):**
-    ```bash
+```bash
     docker compose up --build -d
     ```
 2.  **Acesso:**
@@ -84,29 +84,29 @@ Implementa construção multi-stage para otimização e segurança:
     *   **Redis Commander:** `http://localhost:8081` (usuário/senha: admin/admin)
 
 3.  **Parar:**
-    ```bash
+```bash
     docker compose down
-    ```
+```
 
 ## Desenvolvimento Local e Testes (Dentro do diretório `api`)
 
 1.  **Pré-requisitos:** Python 3.10+, Poetry.
 2.  **Navegue até `api/`:**
-    ```bash
+```bash
     cd api
-    ```
+```
 3.  **Ative o ambiente virtual:**
-    ```bash
+```bash
     poetry shell
-    ```
+```
 4.  **Instale as dependências:**
-    ```bash
+```bash
     poetry install
     ```
 5.  **Execute os testes:**
-    ```bash
-    pytest
-    ```
+```bash
+pytest
+```
     Para executar um teste específico:
     ```bash
     pytest app/tests/test_api.py::test_calculate_insurance_success -v
@@ -164,11 +164,10 @@ Este arquivo define os parâmetros de cálculo (taxas de ajuste, limites, etc.),
 
 ## Possíveis Melhorias
 
-*   **Configuração no Banco de Dados:** Armazenar parâmetros de cálculo no DB para atualizações dinâmicas via UI/API.
-*   **Repositório Completo:** Implementar persistência completa dos cálculos.
+*   **Configuração no Banco de Dados:** Armazenar parâmetros de cálculo no DB para atualizações dinâmicas via UI/API autenticado.
 *   **Eventos de Domínio:** Usar eventos para desacoplar ações (ex: notificar outros sistemas após cálculo).
-*   **Segurança:** Adicionar autenticação/autorização.
-*   **Monitoramento Avançado:** Integrar com Prometheus/Grafana, etc.
+*   **Segurança:** Adicionar autenticação/autorização jwt.
+*   **Monitoramento Avançado:** Integrar com Prometheus/Grafana....... não feito por seer simples teste
 
 ## Licença
 

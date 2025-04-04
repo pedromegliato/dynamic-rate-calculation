@@ -6,16 +6,19 @@ from decimal import Decimal
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.config.settings import settings, Settings
-from app.domain.interfaces.repository import InsuranceCalculationRepository
+from app.domain.interfaces import InsuranceCalculationRepository, InsuranceConfig as InsuranceConfigInterface
 from app.application.use_cases import (
     CalculateInsuranceUseCase,
     GetCalculationUseCase,
     ListCalculationsUseCase,
-    DeleteCalculationUseCase
+    DeleteCalculationUseCase,
+    UpdateInsuranceCalculationUseCase
 )
 from app.application.dtos.insurance import (
     InsuranceCalculationRequest,
-    InsuranceCalculationResponse
+    InsuranceCalculationResponse,
+    InsuranceCalculationPatchRequest,
+    AddressResponse
 )
 from app.domain.entities import InsuranceCalculationEntity
 from app.domain.exceptions import InvalidCarInfoError, RepositoryError, CalculationNotFoundError
@@ -51,6 +54,12 @@ def get_delete_calculation_use_case(
 ) -> DeleteCalculationUseCase:
     return DeleteCalculationUseCase(repository=repository)
 
+def get_update_calculation_use_case(
+    repository: InsuranceCalculationRepository = Depends(get_insurance_repository),
+    app_settings: Settings = Depends(get_settings)
+) -> UpdateInsuranceCalculationUseCase:
+    return UpdateInsuranceCalculationUseCase(repository=repository, app_settings=app_settings)
+
 # Endpoints 
 @router.post(
     "/calculate",
@@ -78,7 +87,8 @@ async def calculate_insurance_endpoint(
             deductible_value=float(result.deductible_value.amount),
             policy_limit=float(result.policy_limit.amount),
             gis_adjustment=float(result.gis_adjustment) if result.gis_adjustment is not None else None,
-            broker_fee=float(result.broker_fee.amount)
+            broker_fee=float(result.broker_fee.amount),
+            registration_location=AddressResponse.model_validate(result.registration_location) if result.registration_location else None
         )
     except InvalidCarInfoError as e:
         logger.warning(f"Erro de validação ao calcular seguro: {str(e)}")
@@ -96,7 +106,7 @@ async def calculate_insurance_endpoint(
         logger.error(f"Erro inesperado ao calcular seguro: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro inesperado ao calcular o seguro"
+            detail="Erro interno inesperado ao calcular o seguro"
         )
 
 @router.get(
@@ -127,7 +137,8 @@ async def get_calculation_endpoint(
             deductible_value=float(result.deductible_value.amount),
             policy_limit=float(result.policy_limit.amount),
             gis_adjustment=float(result.gis_adjustment) if result.gis_adjustment is not None else None,
-            broker_fee=float(result.broker_fee.amount)
+            broker_fee=float(result.broker_fee.amount),
+            registration_location=AddressResponse.model_validate(result.registration_location) if result.registration_location else None
         )
     except CalculationNotFoundError as e:
         logger.warning(f"Cálculo ID {calculation_id} não encontrado para GET.")
@@ -163,28 +174,38 @@ async def list_calculations_endpoint(
         logger.info(f"Listando cálculos com limit={limit}, offset={offset}")
         results = await use_case.execute(limit=limit, offset=offset)
         logger.info(f"{len(results)} cálculos listados.")
-        return [
-            InsuranceCalculationResponse(
-                id=str(result.id),
-                timestamp=result.created_at,
-                car_make=result.car_info.make,
-                car_model=result.car_info.model,
-                car_year=result.car_info.year,
-                car_value=float(result.car_info.value),
-                applied_rate=float(result.applied_rate),
-                calculated_premium=float(result.calculated_premium.amount),
-                deductible_value=float(result.deductible_value.amount),
-                policy_limit=float(result.policy_limit.amount),
-                gis_adjustment=float(result.gis_adjustment) if result.gis_adjustment is not None else None,
-                broker_fee=float(result.broker_fee.amount)
-            ) for result in results
-        ]
+        response_list = []
+        for result in results:
+            response_list.append(
+                InsuranceCalculationResponse(
+                    id=str(result.id),
+                    timestamp=result.created_at,
+                    car_make=result.car_info.make,
+                    car_model=result.car_info.model,
+                    car_year=result.car_info.year,
+                    car_value=float(result.car_info.value),
+                    applied_rate=float(result.applied_rate),
+                    calculated_premium=float(result.calculated_premium.amount),
+                    deductible_value=float(result.deductible_value.amount),
+                    policy_limit=float(result.policy_limit.amount),
+                    gis_adjustment=float(result.gis_adjustment) if result.gis_adjustment is not None else None,
+                    broker_fee=float(result.broker_fee.amount),
+                    registration_location=AddressResponse.model_validate(result.registration_location) if result.registration_location else None
+                )
+            )
+        return response_list
     except RepositoryError as e:
         logger.error(f"Erro de repositório ao listar cálculos: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao listar cálculos.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao listar cálculos"
+        )
     except Exception as e:
         logger.error(f"Erro inesperado ao listar cálculos: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno inesperado.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao listar cálculos"
+        )
 
 @router.delete(
     "/calculations/{calculation_id}",
@@ -216,4 +237,66 @@ async def delete_calculation_endpoint(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro ao deletar cálculo.")
     except Exception as e:
         logger.error(f"Erro inesperado ao deletar cálculo {calculation_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno inesperado.") 
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Erro interno inesperado.")
+
+@router.patch(
+    "/calculations/{calculation_id}",
+    response_model=InsuranceCalculationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Atualiza parcialmente um cálculo de seguro existente",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"detail": "Cálculo não encontrado"},
+        status.HTTP_400_BAD_REQUEST: {"detail": "Dados inválidos"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"detail": "Erro de validação"}
+    }
+)
+async def update_calculation_endpoint(
+    calculation_id: str,
+    patch_request: InsuranceCalculationPatchRequest,
+    use_case: UpdateInsuranceCalculationUseCase = Depends(get_update_calculation_use_case)
+) -> InsuranceCalculationResponse:
+    try:
+        logger.info(f"Atualização parcial requisitada para cálculo ID: {calculation_id} com dados: {patch_request.model_dump(exclude_unset=True)}")
+        
+        updated_result = await use_case.execute(calculation_id, patch_request)
+        
+        logger.info(f"Cálculo ID {calculation_id} atualizado com sucesso.")
+        return InsuranceCalculationResponse(
+            id=str(updated_result.id),
+            timestamp=updated_result.updated_at,
+            car_make=updated_result.car_info.make,
+            car_model=updated_result.car_info.model,
+            car_year=updated_result.car_info.year,
+            car_value=float(updated_result.car_info.value),
+            applied_rate=float(updated_result.applied_rate),
+            calculated_premium=float(updated_result.calculated_premium.amount),
+            deductible_value=float(updated_result.deductible_value.amount),
+            policy_limit=float(updated_result.policy_limit.amount),
+            gis_adjustment=float(updated_result.gis_adjustment) if updated_result.gis_adjustment is not None else None,
+            broker_fee=float(updated_result.broker_fee.amount),
+            registration_location=AddressResponse.model_validate(updated_result.registration_location) if updated_result.registration_location else None
+        )
+    except CalculationNotFoundError as e:
+        logger.warning(f"Cálculo ID {calculation_id} não encontrado para PATCH.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cálculo não encontrado"
+        )
+    except InvalidCarInfoError as e:
+        logger.warning(f"Dados inválidos na atualização do cálculo {calculation_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except RepositoryError as e:
+        logger.error(f"Erro de repositório ao atualizar cálculo {calculation_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao atualizar cálculo"
+        )
+    except Exception as e:
+        logger.error(f"Erro inesperado ao atualizar cálculo {calculation_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro inesperado ao atualizar o cálculo"
+        ) 

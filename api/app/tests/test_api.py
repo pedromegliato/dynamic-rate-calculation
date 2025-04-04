@@ -105,7 +105,7 @@ def test_calculate_insurance_use_case_error(valid_calculation_request_data):
         response = client.post("/insurance/calculate", json=valid_calculation_request_data)
         
         assert response.status_code == 500
-        assert "Erro inesperado ao calcular o seguro" in response.json()["detail"]
+        assert "Erro interno inesperado ao calcular o seguro" in response.json()["detail"]
 
 def test_health_check():
     """Testa o endpoint de health check."""

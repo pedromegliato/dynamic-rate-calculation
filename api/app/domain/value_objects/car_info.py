@@ -4,6 +4,7 @@ Objeto de valor para informações do carro.
 from dataclasses import dataclass
 from app.domain.value_objects.money import Money
 from app.domain.value_objects.address import Address
+from decimal import Decimal
 
 @dataclass(frozen=True)
 class CarInfo:
@@ -11,8 +12,8 @@ class CarInfo:
     make: str
     model: str
     year: int
-    value: Money
-    registration_location: Address = None
+    value: Decimal
+    # registration_location: Address = None
     
     def __str__(self) -> str:
         """
